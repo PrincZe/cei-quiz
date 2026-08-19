@@ -4,6 +4,8 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { QUESTIONS, Question } from "@/data/questions";
 import { STUDY_NOTES } from "@/data/studyNotes";
 import { TOPICS, TOPIC_LABEL } from "@/data/topics";
+import { KEY_NUMBERS } from "@/data/keyNumbers";
+import { TRICKY_PAIRS, TrickyPair } from "@/data/trickyPairs";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
@@ -28,8 +30,10 @@ interface ChatMessage {
   content: string;
 }
 
+type Mode = "practice" | "study" | "numbers" | "pairs";
+
 export default function QuizApp() {
-  const [mode, setMode] = useState<"practice" | "study">("practice");
+  const [mode, setMode] = useState<Mode>("practice");
   const [examTrack, setExamTrack] = useState<"nonfdw" | "standard">("nonfdw");
   const [setFilter, setSetFilter] = useState<"all" | number>(3);
   const [topicFilter, setTopicFilter] = useState("all");
@@ -52,6 +56,9 @@ export default function QuizApp() {
     {}
   );
   const [chatDrafts, setChatDrafts] = useState<Record<number, string>>({});
+  const [pairPos, setPairPos] = useState(0);
+  const [pairAnswers, setPairAnswers] = useState<Record<number, number>>({});
+  const [numbersFilter, setNumbersFilter] = useState("");
 
   const getPool = useCallback(
     (track: string, sf: "all" | number) => {
@@ -66,10 +73,14 @@ export default function QuizApp() {
   );
 
   const startRun = useCallback(
-    (topic: string, track: string, sf: "all" | number) => {
+    (topic: string | string[], track: string, sf: "all" | number) => {
       const pool = getPool(track, sf);
-      const filtered =
-        topic === "all" ? pool : pool.filter((q) => q.topic === topic);
+      let filtered: Question[];
+      if (Array.isArray(topic)) {
+        filtered = pool.filter((q) => topic.includes(q.topic));
+      } else {
+        filtered = topic === "all" ? pool : pool.filter((q) => q.topic === topic);
+      }
       const ids = shuffle(filtered.map((q) => q.id));
       setOrder(ids);
       setPos(0);
@@ -83,10 +94,14 @@ export default function QuizApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleModeChange = (m: "practice" | "study") => {
+  const handleModeChange = (m: Mode) => {
     setMode(m);
     if (m === "practice" && order.length === 0) {
       startRun(topicFilter, examTrack, setFilter);
+    }
+    if (m === "pairs") {
+      setPairPos(0);
+      setPairAnswers({});
     }
   };
 
@@ -154,7 +169,11 @@ export default function QuizApp() {
             <p className="docket-sub">
               {mode === "practice"
                 ? `${totalQuestions} questions · ${setLabel} · unofficial study aid`
-                : "Study notes · unofficial study aid"}
+                : mode === "numbers"
+                  ? "Key numbers & thresholds · unofficial study aid"
+                  : mode === "pairs"
+                    ? "Commonly confused concepts · unofficial study aid"
+                    : "Study notes · unofficial study aid"}
             </p>
           </div>
           {mode === "practice" && (
@@ -169,13 +188,25 @@ export default function QuizApp() {
             className={`mode-btn ${mode === "practice" ? "active" : ""}`}
             onClick={() => handleModeChange("practice")}
           >
-            Practice Quiz
+            Practice
           </button>
           <button
             className={`mode-btn ${mode === "study" ? "active" : ""}`}
             onClick={() => handleModeChange("study")}
           >
-            Study Notes
+            Notes
+          </button>
+          <button
+            className={`mode-btn ${mode === "numbers" ? "active" : ""}`}
+            onClick={() => handleModeChange("numbers")}
+          >
+            Numbers
+          </button>
+          <button
+            className={`mode-btn ${mode === "pairs" ? "active" : ""}`}
+            onClick={() => handleModeChange("pairs")}
+          >
+            Tricky Pairs
           </button>
         </div>
 
@@ -251,6 +282,9 @@ export default function QuizApp() {
                 setPos(0);
                 setAnswers({});
               }}
+              onDrillWeak={(weakTopics) => {
+                startRun(weakTopics, examTrack, setFilter);
+              }}
             />
           ) : (
             <QuestionCard
@@ -281,6 +315,25 @@ export default function QuizApp() {
           topicFilter={topicFilter}
           expanded={studyExpanded}
           setExpanded={setStudyExpanded}
+        />
+      )}
+
+      {mode === "numbers" && (
+        <NumbersView
+          examTrack={examTrack}
+          topicFilter={topicFilter}
+          filter={numbersFilter}
+          setFilter={setNumbersFilter}
+        />
+      )}
+
+      {mode === "pairs" && (
+        <PairsView
+          examTrack={examTrack}
+          pos={pairPos}
+          setPos={setPairPos}
+          answers={pairAnswers}
+          setAnswers={setPairAnswers}
         />
       )}
 
@@ -608,6 +661,7 @@ function Results({
   topicFilter,
   onRestart,
   onRetryMissed,
+  onDrillWeak,
 }: {
   order: number[];
   answers: Record<number, Answer>;
@@ -616,6 +670,7 @@ function Results({
   topicFilter: string;
   onRestart: () => void;
   onRetryMissed: () => void;
+  onDrillWeak: (weakTopics: string[]) => void;
 }) {
   const total = order.length;
   const correct = Object.values(answers).filter((a) => a.correct).length;
@@ -635,6 +690,10 @@ function Results({
     byTopic[q.topic].total += 1;
     if (a && a.correct) byTopic[q.topic].correct += 1;
   });
+
+  const weakTopics = Object.entries(byTopic)
+    .filter(([, b]) => b.total >= 2 && (b.correct / b.total) < 0.65)
+    .map(([key]) => key);
 
   return (
     <div className="stage">
@@ -657,13 +716,17 @@ function Results({
         <div className="breakdown">
           {Object.entries(byTopic).map(([key, b]) => {
             const w = b.total ? (b.correct / b.total) * 100 : 0;
+            const isWeak = weakTopics.includes(key);
             return (
-              <div key={key} className="breakdown-row">
-                <span className="breakdown-topic">{TOPIC_LABEL[key]}</span>
+              <div key={key} className={`breakdown-row ${isWeak ? "weak" : ""}`}>
+                <span className="breakdown-topic">
+                  {isWeak && <span className="weak-indicator">!</span>}
+                  {TOPIC_LABEL[key]}
+                </span>
                 <span className="breakdown-bar">
                   <span
                     className="breakdown-fill"
-                    style={{ width: `${w}%` }}
+                    style={{ width: `${w}%`, background: isWeak ? "var(--stamp-red)" : undefined }}
                   />
                 </span>
                 <span className="breakdown-frac">
@@ -684,6 +747,14 @@ function Results({
           >
             Retry missed only
           </button>
+          {weakTopics.length > 0 && (
+            <button
+              className="btn btn-weak"
+              onClick={() => onDrillWeak(weakTopics)}
+            >
+              Drill weak topics ({weakTopics.length})
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -763,6 +834,194 @@ function StudyNotes({
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function NumbersView({
+  examTrack,
+  topicFilter,
+  filter,
+  setFilter,
+}: {
+  examTrack: string;
+  topicFilter: string;
+  filter: string;
+  setFilter: (v: string) => void;
+}) {
+  let numbers = KEY_NUMBERS;
+  if (examTrack === "nonfdw") {
+    numbers = numbers.filter((n) => n.topic !== "fdw");
+  }
+  if (topicFilter !== "all") {
+    numbers = numbers.filter((n) => n.topic === topicFilter);
+  }
+  if (filter.trim()) {
+    const q = filter.toLowerCase();
+    numbers = numbers.filter(
+      (n) =>
+        n.label.toLowerCase().includes(q) ||
+        n.value.toLowerCase().includes(q) ||
+        n.context.toLowerCase().includes(q)
+    );
+  }
+
+  const grouped: Record<string, typeof numbers> = {};
+  numbers.forEach((n) => {
+    if (!grouped[n.topic]) grouped[n.topic] = [];
+    grouped[n.topic].push(n);
+  });
+
+  return (
+    <div className="stage">
+      <div className="numbers-search">
+        <input
+          type="text"
+          className="numbers-input"
+          placeholder="Filter numbers (e.g. &quot;14 days&quot;, &quot;fine&quot;, &quot;salary&quot;)..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+      </div>
+      <div className="numbers-list">
+        {Object.entries(grouped).map(([topic, items]) => (
+          <div key={topic} className="numbers-group">
+            <div className="numbers-group-header">{TOPIC_LABEL[topic]}</div>
+            {items.map((item, i) => (
+              <div key={i} className="numbers-row">
+                <span className="numbers-label">{item.label}</span>
+                <span className="numbers-value">{item.value}</span>
+                <span className="numbers-context">{item.context}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+        {numbers.length === 0 && (
+          <p className="numbers-empty">No matching numbers found.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PairsView({
+  examTrack,
+  pos,
+  setPos,
+  answers,
+  setAnswers,
+}: {
+  examTrack: string;
+  pos: number;
+  setPos: (p: number) => void;
+  answers: Record<number, number>;
+  setAnswers: React.Dispatch<React.SetStateAction<Record<number, number>>>;
+}) {
+  const pairs = examTrack === "nonfdw"
+    ? TRICKY_PAIRS.filter((p) => p.topic !== "fdw")
+    : TRICKY_PAIRS;
+
+  if (pairs.length === 0) return null;
+
+  const currentPair: TrickyPair = pairs[pos % pairs.length];
+  const answered = answers[currentPair.id] !== undefined;
+  const selectedIdx = answers[currentPair.id];
+  const isCorrect = selectedIdx === currentPair.quiz.correct;
+
+  const handleSelect = (idx: number) => {
+    if (answered) return;
+    setAnswers((prev) => ({ ...prev, [currentPair.id]: idx }));
+  };
+
+  const handleNext = () => {
+    setPos(pos + 1);
+  };
+
+  const handleRestart = () => {
+    setPos(0);
+    setAnswers({});
+  };
+
+  const answeredCount = Object.keys(answers).length;
+  const correctCount = Object.entries(answers).filter(([id, sel]) => {
+    const p = TRICKY_PAIRS.find((x) => x.id === Number(id));
+    return p && sel === p.quiz.correct;
+  }).length;
+
+  return (
+    <div className="stage">
+      <div className="pairs-progress">
+        <span>Pair {(pos % pairs.length) + 1} of {pairs.length}</span>
+        {answeredCount > 0 && (
+          <span className="pairs-score">{correctCount}/{answeredCount} correct</span>
+        )}
+      </div>
+      <div className="card pairs-card">
+        <div className="q-head">
+          <span className="q-topic">&sect; {TOPIC_LABEL[currentPair.topic]}</span>
+        </div>
+        <p className="pairs-title">{currentPair.title}</p>
+        <div className="pairs-comparison">
+          <div className="pairs-item">
+            <div className="pairs-item-label">{currentPair.itemA.label}</div>
+            <div className="pairs-item-detail">{currentPair.itemA.detail}</div>
+          </div>
+          <div className="pairs-vs">vs</div>
+          <div className="pairs-item">
+            <div className="pairs-item-label">{currentPair.itemB.label}</div>
+            <div className="pairs-item-detail">{currentPair.itemB.detail}</div>
+          </div>
+        </div>
+
+        <div className="pairs-quiz">
+          <p className="pairs-quiz-question">{currentPair.quiz.question}</p>
+          <div className="options">
+            {currentPair.quiz.options.map((opt, i) => {
+              let cls = "option";
+              if (answered) {
+                if (i === currentPair.quiz.correct) cls += " correct";
+                else if (i === selectedIdx) cls += " wrong";
+                else cls += " dim";
+              }
+              return (
+                <button
+                  key={i}
+                  className={cls}
+                  disabled={answered}
+                  onClick={() => handleSelect(i)}
+                >
+                  <span className="opt-letter">({letter(i)})</span>
+                  <span>{opt}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {answered && (
+          <div className="explain">
+            <div className={`stamp ${isCorrect ? "correct" : "wrong"}`}>
+              {isCorrect ? "Correct" : "Incorrect"}
+            </div>
+            <div className="explain-label">Why</div>
+            <p className="explain-text">{currentPair.quiz.explain}</p>
+          </div>
+        )}
+
+        {answered && (
+          <div className="stage-footer">
+            {pos < pairs.length - 1 ? (
+              <button className="btn btn-primary" onClick={handleNext}>
+                Next pair →
+              </button>
+            ) : (
+              <button className="btn btn-primary" onClick={handleRestart}>
+                Restart pairs
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
