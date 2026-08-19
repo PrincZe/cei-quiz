@@ -32,6 +32,31 @@ interface ChatMessage {
 
 type Mode = "practice" | "study" | "numbers" | "pairs";
 
+interface TopicStats {
+  correct: number;
+  total: number;
+}
+
+type TopicHistory = Record<string, TopicStats>;
+
+const HISTORY_KEY = "cei-quiz-topic-history";
+
+function loadHistory(): TopicHistory {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveHistory(history: TopicHistory) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch { /* quota exceeded — ignore */ }
+}
+
 export default function QuizApp() {
   const [mode, setMode] = useState<Mode>("practice");
   const [examTrack, setExamTrack] = useState<"nonfdw" | "standard">("nonfdw");
@@ -59,6 +84,7 @@ export default function QuizApp() {
   const [pairPos, setPairPos] = useState(0);
   const [pairAnswers, setPairAnswers] = useState<Record<number, number>>({});
   const [numbersFilter, setNumbersFilter] = useState("");
+  const [topicHistory, setTopicHistory] = useState<TopicHistory>(loadHistory);
 
   const getPool = useCallback(
     (track: string, sf: "all" | number) => {
@@ -132,6 +158,24 @@ export default function QuizApp() {
   };
 
   const nextQuestion = () => setPos((p) => p + 1);
+
+  const recordRunToHistory = useCallback(() => {
+    const updated = { ...topicHistory };
+    Object.keys(answers).forEach((idStr) => {
+      const q = QUESTIONS.find((x) => x.id === Number(idStr));
+      if (!q) return;
+      if (!updated[q.topic]) updated[q.topic] = { correct: 0, total: 0 };
+      updated[q.topic].total += 1;
+      if (answers[Number(idStr)].correct) updated[q.topic].correct += 1;
+    });
+    setTopicHistory(updated);
+    saveHistory(updated);
+  }, [answers, topicHistory]);
+
+  const resetHistory = () => {
+    setTopicHistory({});
+    saveHistory({});
+  };
 
   const currentScore = () => {
     const vals = Object.values(answers);
@@ -285,6 +329,9 @@ export default function QuizApp() {
               onDrillWeak={(weakTopics) => {
                 startRun(weakTopics, examTrack, setFilter);
               }}
+              topicHistory={topicHistory}
+              onRecordRun={recordRunToHistory}
+              onResetHistory={resetHistory}
             />
           ) : (
             <QuestionCard
@@ -662,6 +709,9 @@ function Results({
   onRestart,
   onRetryMissed,
   onDrillWeak,
+  topicHistory,
+  onRecordRun,
+  onResetHistory,
 }: {
   order: number[];
   answers: Record<number, Answer>;
@@ -671,7 +721,18 @@ function Results({
   onRestart: () => void;
   onRetryMissed: () => void;
   onDrillWeak: (weakTopics: string[]) => void;
+  topicHistory: TopicHistory;
+  onRecordRun: () => void;
+  onResetHistory: () => void;
 }) {
+  const recorded = useRef(false);
+  useEffect(() => {
+    if (!recorded.current && Object.keys(answers).length > 0) {
+      recorded.current = true;
+      onRecordRun();
+    }
+  }, [answers, onRecordRun]);
+
   const total = order.length;
   const correct = Object.values(answers).filter((a) => a.correct).length;
   const pct = total ? Math.round((correct / total) * 100) : 0;
@@ -694,6 +755,11 @@ function Results({
   const weakTopics = Object.entries(byTopic)
     .filter(([, b]) => b.total >= 2 && (b.correct / b.total) < 0.65)
     .map(([key]) => key);
+
+  const allTimeWeak = Object.entries(topicHistory)
+    .filter(([, b]) => b.total >= 5 && (b.correct / b.total) < 0.65)
+    .map(([key]) => key);
+  const hasHistory = Object.keys(topicHistory).length > 0;
 
   return (
     <div className="stage">
@@ -756,6 +822,37 @@ function Results({
             </button>
           )}
         </div>
+
+        {hasHistory && (
+          <div className="history-section">
+            <div className="history-header">
+              <span className="history-title">All-time weak topics</span>
+              <button className="history-reset" onClick={onResetHistory}>
+                Reset history
+              </button>
+            </div>
+            {allTimeWeak.length > 0 ? (
+              <>
+                <div className="history-weak-list">
+                  {allTimeWeak.map((key) => (
+                    <span key={key} className="history-weak-chip">
+                      {TOPIC_LABEL[key]} ({topicHistory[key].correct}/{topicHistory[key].total})
+                    </span>
+                  ))}
+                </div>
+                <button
+                  className="btn btn-weak"
+                  style={{ marginTop: "10px", width: "100%" }}
+                  onClick={() => onDrillWeak(allTimeWeak)}
+                >
+                  Drill all-time weak topics
+                </button>
+              </>
+            ) : (
+              <p className="history-note">No consistently weak topics yet (need 5+ attempts per topic).</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

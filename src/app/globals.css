@@ -502,6 +502,55 @@ body {
 .btn-weak:hover { opacity: .88; }
 .btn-weak:active { transform: scale(.98); }
 
+/* ---------- History section ---------- */
+.history-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--rule);
+}
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.history-title {
+  font-size: .78rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.history-reset {
+  font-size: .72rem;
+  background: none;
+  border: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.history-reset:hover { color: var(--stamp-red); }
+.history-weak-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.history-weak-chip {
+  font-size: .74rem;
+  font-weight: 600;
+  background: var(--stamp-red-bg);
+  color: var(--stamp-red);
+  border: 1px solid var(--stamp-red);
+  border-radius: 20px;
+  padding: 4px 10px;
+}
+.history-note {
+  font-size: .8rem;
+  color: var(--ink-faint);
+  margin: 0;
+}
+
 /* ---------- Key Numbers view ---------- */
 .numbers-search { margin-bottom: 14px; }
 .numbers-input {
