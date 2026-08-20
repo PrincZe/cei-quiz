@@ -59,7 +59,7 @@ function saveHistory(history: TopicHistory) {
 
 export default function QuizApp() {
   const [mode, setMode] = useState<Mode>("practice");
-  const [examTrack, setExamTrack] = useState<"nonfdw" | "standard">("nonfdw");
+  const examTrack = "nonfdw" as const;
   const [setFilter, setSetFilter] = useState<"all" | number>(3);
   const [topicFilter, setTopicFilter] = useState("all");
   const [order, setOrder] = useState<number[]>([]);
@@ -122,13 +122,6 @@ export default function QuizApp() {
     }
   };
 
-  const handleTrackChange = (track: "nonfdw" | "standard") => {
-    if (track === examTrack) return;
-    setExamTrack(track);
-    setTopicFilter("all");
-    if (mode === "practice") startRun("all", track, setFilter);
-  };
-
   const handleSetChange = (sf: "all" | number) => {
     if (sf === setFilter) return;
     setSetFilter(sf);
@@ -178,9 +171,7 @@ export default function QuizApp() {
     (a, b) => a - b
   );
 
-  const visibleTopics = TOPICS.filter(
-    (t) => examTrack === "standard" || t.key !== "fdw"
-  );
+  const visibleTopics = TOPICS.filter((t) => t.key !== "fdw");
 
   const score = currentScore();
   const totalQuestions = pool.length;
@@ -188,12 +179,8 @@ export default function QuizApp() {
 
   const trackNote =
     mode === "practice"
-      ? examTrack === "nonfdw"
-        ? "Non-FDW track: excludes FDW/MDW-specific placement questions."
-        : "Standard track: includes FDW/MDW-specific placement questions alongside the general syllabus."
-      : examTrack === "nonfdw"
-        ? "Non-FDW track: FDW/MDW-specific notes are hidden below."
-        : "Standard track: FDW/MDW-specific notes are included below.";
+      ? "Non-FDW track: excludes FDW/MDW-specific placement questions."
+      : "Non-FDW track: FDW/MDW-specific notes are hidden.";
 
   return (
     <div className="app">
@@ -265,20 +252,6 @@ export default function QuizApp() {
           </div>
         )}
 
-        <div className="track-row">
-          <button
-            className={`track-btn ${examTrack === "nonfdw" ? "active" : ""}`}
-            onClick={() => handleTrackChange("nonfdw")}
-          >
-            Basic — Non-FDW
-          </button>
-          <button
-            className={`track-btn ${examTrack === "standard" ? "active" : ""}`}
-            onClick={() => handleTrackChange("standard")}
-          >
-            Basic — Standard (with FDW)
-          </button>
-        </div>
         <p className="track-note">{trackNote}</p>
 
         <div className="topic-row">
@@ -855,8 +828,7 @@ function StudyNotes({
   topicFilter: string;
 }) {
   const visibleTopics = TOPICS.filter(
-    (t) =>
-      t.key !== "all" && (examTrack === "standard" || t.key !== "fdw")
+    (t) => t.key !== "all" && t.key !== "fdw"
   );
   const [activeTopic, setActiveTopic] = useState(
     topicFilter !== "all" ? topicFilter : visibleTopics[0]?.key || "earf"
@@ -923,7 +895,7 @@ function NumbersView({
   const visibleTopics = TOPICS.filter(
     (t) =>
       t.key !== "all" &&
-      (examTrack === "standard" || t.key !== "fdw") &&
+      t.key !== "fdw" &&
       KEY_NUMBERS.some((n) => n.topic === t.key)
   );
   const [activeTopic, setActiveTopic] = useState(
