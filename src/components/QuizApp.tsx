@@ -65,15 +65,6 @@ export default function QuizApp() {
   const [order, setOrder] = useState<number[]>([]);
   const [pos, setPos] = useState(0);
   const [answers, setAnswers] = useState<Record<number, Answer>>({});
-  const [studyExpanded, setStudyExpanded] = useState<Record<string, boolean>>(
-    () => {
-      const init: Record<string, boolean> = {};
-      TOPICS.forEach((t) => {
-        if (t.key !== "all") init[t.key] = true;
-      });
-      return init;
-    }
-  );
   const [chats, setChats] = useState<Record<number, ChatMessage[]>>({});
   const [chatOpen, setChatOpen] = useState<Record<number, boolean>>({});
   const [chatLoading, setChatLoading] = useState<Record<number, boolean>>({});
@@ -360,8 +351,6 @@ export default function QuizApp() {
         <StudyNotes
           examTrack={examTrack}
           topicFilter={topicFilter}
-          expanded={studyExpanded}
-          setExpanded={setStudyExpanded}
         />
       )}
 
@@ -861,103 +850,60 @@ function Results({
 function StudyNotes({
   examTrack,
   topicFilter,
-  expanded,
-  setExpanded,
 }: {
   examTrack: string;
   topicFilter: string;
-  expanded: Record<string, boolean>;
-  setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
-  const [notesTab, setNotesTab] = useState<Record<string, "summary" | "ah">>(
-    {}
-  );
   const visibleTopics = TOPICS.filter(
     (t) =>
       t.key !== "all" && (examTrack === "standard" || t.key !== "fdw")
   );
-  const filtered =
-    topicFilter === "all"
-      ? visibleTopics
-      : visibleTopics.filter((t) => t.key === topicFilter);
+  const [activeTopic, setActiveTopic] = useState(
+    topicFilter !== "all" ? topicFilter : visibleTopics[0]?.key || "earf"
+  );
+  const [sourceTab, setSourceTab] = useState<"summary" | "ah">("summary");
+
+  const bullets = STUDY_NOTES[activeTopic] || [];
+  const ahBullets = AH_STUDY_NOTES[activeTopic] || [];
+  const hasAh = ahBullets.length > 0;
 
   return (
     <div className="stage">
-      <div className="study-controls">
-        <button
-          className="btn btn-ghost"
-          onClick={() => {
-            const next: Record<string, boolean> = { ...expanded };
-            filtered.forEach((t) => (next[t.key] = true));
-            setExpanded(next);
-          }}
-        >
-          Expand all
-        </button>
-        <button
-          className="btn btn-ghost"
-          onClick={() => {
-            const next: Record<string, boolean> = { ...expanded };
-            filtered.forEach((t) => (next[t.key] = false));
-            setExpanded(next);
-          }}
-        >
-          Collapse all
-        </button>
+      <div className="topic-tabs">
+        {visibleTopics.map((t) => (
+          <button
+            key={t.key}
+            className={`topic-tab ${activeTopic === t.key ? "active" : ""}`}
+            onClick={() => { setActiveTopic(t.key); setSourceTab("summary"); }}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
-      <div className="notes-list">
-        {filtered.map((t) => {
-          const isExpanded = !!expanded[t.key];
-          const bullets = STUDY_NOTES[t.key] || [];
-          const ahBullets = AH_STUDY_NOTES[t.key] || [];
-          const activeTab = notesTab[t.key] || "summary";
-          return (
-            <div key={t.key} className="note-card">
-              <button
-                className="note-header"
-                onClick={() =>
-                  setExpanded((prev) => ({ ...prev, [t.key]: !isExpanded }))
-                }
-              >
-                <span>{t.label}</span>
-                <span className="note-chevron">
-                  {isExpanded ? "−" : "+"}
-                </span>
-              </button>
-              {isExpanded && (
-                <div className="note-body">
-                  {ahBullets.length > 0 && (
-                    <div className="notes-tabs">
-                      <button
-                        className={`notes-tab ${activeTab === "summary" ? "active" : ""}`}
-                        onClick={() =>
-                          setNotesTab((prev) => ({ ...prev, [t.key]: "summary" }))
-                        }
-                      >
-                        Summary
-                      </button>
-                      <button
-                        className={`notes-tab ${activeTab === "ah" ? "active" : ""}`}
-                        onClick={() =>
-                          setNotesTab((prev) => ({ ...prev, [t.key]: "ah" }))
-                        }
-                      >
-                        AH Materials
-                      </button>
-                    </div>
-                  )}
-                  <ul>
-                    {(activeTab === "summary" ? bullets : ahBullets).map(
-                      (b, i) => (
-                        <li key={i}>{b}</li>
-                      )
-                    )}
-                  </ul>
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {hasAh && (
+        <div className="notes-tabs">
+          <button
+            className={`notes-tab ${sourceTab === "summary" ? "active" : ""}`}
+            onClick={() => setSourceTab("summary")}
+          >
+            Summary
+          </button>
+          <button
+            className={`notes-tab ${sourceTab === "ah" ? "active" : ""}`}
+            onClick={() => setSourceTab("ah")}
+          >
+            AH Materials
+          </button>
+        </div>
+      )}
+      <div className="note-body">
+        <ul>
+          {(sourceTab === "summary" || !hasAh ? bullets : ahBullets).map(
+            (b, i) => (
+              <li key={i}>{b}</li>
+            )
+          )}
+        </ul>
       </div>
     </div>
   );

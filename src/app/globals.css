@@ -451,31 +451,16 @@ body {
 
 /* ---------- Study notes ---------- */
 .study-controls { display: flex; gap: 8px; margin-bottom: 14px; }
-.notes-list { display: flex; flex-direction: column; gap: 10px; }
-.note-card { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
-.note-header {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: transparent;
-  border: none;
-  padding: 14px 16px;
-  cursor: pointer;
-  text-align: left;
-  font-weight: 600;
-  font-size: .98rem;
-  color: var(--ink);
-}
-.note-header:hover { background: rgba(22,35,61,.03); }
-.note-chevron { font-size: 1.05rem; color: var(--seal); flex-shrink: 0; margin-left: 12px; width: 20px; text-align: center; }
-.note-body { padding: 2px 18px 16px; border-top: 1px dashed var(--rule); }
-.note-body ul { margin: 12px 0 0; padding-left: 1.1em; }
-.note-body li { font-size: .9rem; line-height: 1.55; color: var(--ink-soft); margin-bottom: 8px; }
-.note-body li:last-child { margin-bottom: 0; }
-.notes-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.topic-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.topic-tab { font-size: .78rem; font-weight: 600; padding: 6px 12px; border-radius: 4px; border: 1px solid var(--rule); background: transparent; color: var(--ink-soft); cursor: pointer; white-space: nowrap; }
+.topic-tab.active { background: var(--ink); color: var(--card); border-color: var(--ink); }
+.notes-tabs { display: flex; gap: 4px; margin-bottom: 14px; }
 .notes-tab { font-size: .78rem; font-weight: 600; padding: 5px 12px; border-radius: 4px; border: 1px solid var(--rule); background: transparent; color: var(--ink-soft); cursor: pointer; }
 .notes-tab.active { background: #F4D98B; color: #16233D; border-color: #F4D98B; }
+.note-body { padding: 4px 0 0; }
+.note-body ul { margin: 0; padding-left: 1.1em; }
+.note-body li { font-size: .9rem; line-height: 1.55; color: var(--ink-soft); margin-bottom: 8px; }
+.note-body li:last-child { margin-bottom: 0; }
 .notes-tab:last-child.active { background: #7EB8A2; border-color: #7EB8A2; }
 
 /* ---------- Weak topic indicator ---------- */
