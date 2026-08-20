@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { QUESTIONS, Question } from "@/data/questions";
-import { STUDY_NOTES } from "@/data/studyNotes";
+import { STUDY_NOTES, AH_STUDY_NOTES } from "@/data/studyNotes";
 import { TOPICS, TOPIC_LABEL } from "@/data/topics";
 import { KEY_NUMBERS } from "@/data/keyNumbers";
 import { TRICKY_PAIRS, TrickyPair } from "@/data/trickyPairs";
@@ -193,7 +193,7 @@ export default function QuizApp() {
 
   const score = currentScore();
   const totalQuestions = pool.length;
-  const setLabel = setFilter === "all" ? "all sets" : `Set ${setFilter}`;
+  const setLabel = setFilter === "all" ? "all sets" : typeof setFilter === "number" && setFilter >= 15 ? `Set ${setFilter} (AH)` : `Set ${setFilter}`;
 
   const trackNote =
     mode === "practice"
@@ -265,10 +265,10 @@ export default function QuizApp() {
             {setNumbers.map((n) => (
               <button
                 key={n}
-                className={`set-btn ${setFilter === n ? "active" : ""}`}
+                className={`set-btn ${setFilter === n ? "active" : ""}${n >= 15 ? " ah" : ""}`}
                 onClick={() => handleSetChange(n)}
               >
-                Set {n}
+                {n >= 15 ? `Set ${n} · AH` : `Set ${n}`}
               </button>
             ))}
           </div>
@@ -738,7 +738,7 @@ function Results({
   const pct = total ? Math.round((correct / total) * 100) : 0;
   const pass = pct >= 65;
 
-  const setLabel = setFilter === "all" ? "All sets" : `Set ${setFilter}`;
+  const setLabel = setFilter === "all" ? "All sets" : typeof setFilter === "number" && setFilter >= 15 ? `Set ${setFilter} (AH)` : `Set ${setFilter}`;
   const trackLabel = examTrack === "nonfdw" ? "Non-FDW" : "Standard";
   const topicLabel =
     topicFilter === "all" ? "" : ` · ${TOPIC_LABEL[topicFilter]}`;
@@ -906,6 +906,7 @@ function StudyNotes({
         {filtered.map((t) => {
           const isExpanded = !!expanded[t.key];
           const bullets = STUDY_NOTES[t.key] || [];
+          const ahBullets = AH_STUDY_NOTES[t.key] || [];
           return (
             <div key={t.key} className="note-card">
               <button
@@ -926,6 +927,16 @@ function StudyNotes({
                       <li key={i}>{b}</li>
                     ))}
                   </ul>
+                  {ahBullets.length > 0 && (
+                    <>
+                      <p className="ah-notes-label">AlwaysHired Materials</p>
+                      <ul>
+                        {ahBullets.map((b, i) => (
+                          <li key={`ah-${i}`}>{b}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                 </div>
               )}
             </div>

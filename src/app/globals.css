@@ -100,6 +100,8 @@ body {
   white-space: nowrap;
 }
 .set-btn { flex: none; padding: 8px 14px; }
+.set-btn.ah { border-color: #7EB8A2; }
+.set-btn.ah.active { background: #7EB8A2; color: #16233D; }
 .mode-btn.active, .set-btn.active, .track-btn.active {
   background: #F4D98B;
   color: #16233D;
@@ -471,6 +473,7 @@ body {
 .note-body ul { margin: 12px 0 0; padding-left: 1.1em; }
 .note-body li { font-size: .9rem; line-height: 1.55; color: var(--ink-soft); margin-bottom: 8px; }
 .note-body li:last-child { margin-bottom: 0; }
+.ah-notes-label { font-size: .78rem; font-weight: 600; color: #7EB8A2; margin: 16px 0 4px; text-transform: uppercase; letter-spacing: .04em; }
 
 /* ---------- Weak topic indicator ---------- */
 .breakdown-row.weak .breakdown-topic { color: var(--stamp-red); font-weight: 600; }
