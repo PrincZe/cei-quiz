@@ -920,13 +920,17 @@ function NumbersView({
   filter: string;
   setFilter: (v: string) => void;
 }) {
-  let numbers = KEY_NUMBERS;
-  if (examTrack === "nonfdw") {
-    numbers = numbers.filter((n) => n.topic !== "fdw");
-  }
-  if (topicFilter !== "all") {
-    numbers = numbers.filter((n) => n.topic === topicFilter);
-  }
+  const visibleTopics = TOPICS.filter(
+    (t) =>
+      t.key !== "all" &&
+      (examTrack === "standard" || t.key !== "fdw") &&
+      KEY_NUMBERS.some((n) => n.topic === t.key)
+  );
+  const [activeTopic, setActiveTopic] = useState(
+    topicFilter !== "all" ? topicFilter : visibleTopics[0]?.key || "earf"
+  );
+
+  let numbers = KEY_NUMBERS.filter((n) => n.topic === activeTopic);
   if (filter.trim()) {
     const q = filter.toLowerCase();
     numbers = numbers.filter(
@@ -937,14 +941,19 @@ function NumbersView({
     );
   }
 
-  const grouped: Record<string, typeof numbers> = {};
-  numbers.forEach((n) => {
-    if (!grouped[n.topic]) grouped[n.topic] = [];
-    grouped[n.topic].push(n);
-  });
-
   return (
     <div className="stage">
+      <div className="topic-tabs">
+        {visibleTopics.map((t) => (
+          <button
+            key={t.key}
+            className={`topic-tab ${activeTopic === t.key ? "active" : ""}`}
+            onClick={() => setActiveTopic(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
       <div className="numbers-search">
         <input
           type="text"
@@ -955,16 +964,11 @@ function NumbersView({
         />
       </div>
       <div className="numbers-list">
-        {Object.entries(grouped).map(([topic, items]) => (
-          <div key={topic} className="numbers-group">
-            <div className="numbers-group-header">{TOPIC_LABEL[topic]}</div>
-            {items.map((item, i) => (
-              <div key={i} className="numbers-row">
-                <span className="numbers-label">{item.label}</span>
-                <span className="numbers-value">{item.value}</span>
-                <span className="numbers-context">{item.context}</span>
-              </div>
-            ))}
+        {numbers.map((item, i) => (
+          <div key={i} className="numbers-row">
+            <span className="numbers-label">{item.label}</span>
+            <span className="numbers-value">{item.value}</span>
+            <span className="numbers-context">{item.context}</span>
           </div>
         ))}
         {numbers.length === 0 && (
