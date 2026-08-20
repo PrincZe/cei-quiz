@@ -869,6 +869,9 @@ function StudyNotes({
   expanded: Record<string, boolean>;
   setExpanded: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
+  const [notesTab, setNotesTab] = useState<Record<string, "summary" | "ah">>(
+    {}
+  );
   const visibleTopics = TOPICS.filter(
     (t) =>
       t.key !== "all" && (examTrack === "standard" || t.key !== "fdw")
@@ -907,6 +910,7 @@ function StudyNotes({
           const isExpanded = !!expanded[t.key];
           const bullets = STUDY_NOTES[t.key] || [];
           const ahBullets = AH_STUDY_NOTES[t.key] || [];
+          const activeTab = notesTab[t.key] || "summary";
           return (
             <div key={t.key} className="note-card">
               <button
@@ -922,21 +926,33 @@ function StudyNotes({
               </button>
               {isExpanded && (
                 <div className="note-body">
-                  <ul>
-                    {bullets.map((b, i) => (
-                      <li key={i}>{b}</li>
-                    ))}
-                  </ul>
                   {ahBullets.length > 0 && (
-                    <>
-                      <p className="ah-notes-label">AlwaysHired Materials</p>
-                      <ul>
-                        {ahBullets.map((b, i) => (
-                          <li key={`ah-${i}`}>{b}</li>
-                        ))}
-                      </ul>
-                    </>
+                    <div className="notes-tabs">
+                      <button
+                        className={`notes-tab ${activeTab === "summary" ? "active" : ""}`}
+                        onClick={() =>
+                          setNotesTab((prev) => ({ ...prev, [t.key]: "summary" }))
+                        }
+                      >
+                        Summary
+                      </button>
+                      <button
+                        className={`notes-tab ${activeTab === "ah" ? "active" : ""}`}
+                        onClick={() =>
+                          setNotesTab((prev) => ({ ...prev, [t.key]: "ah" }))
+                        }
+                      >
+                        AH Materials
+                      </button>
+                    </div>
                   )}
+                  <ul>
+                    {(activeTab === "summary" ? bullets : ahBullets).map(
+                      (b, i) => (
+                        <li key={i}>{b}</li>
+                      )
+                    )}
+                  </ul>
                 </div>
               )}
             </div>
